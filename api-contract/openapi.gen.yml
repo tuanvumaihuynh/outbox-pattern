@@ -1,0 +1,182 @@
+openapi: 3.0.1
+info:
+  version: 0.1.0
+  title: Outbox Pattern API
+  description: Outbox Pattern API
+  license:
+    url: https://opensource.org/licenses/MIT
+    name: MIT
+servers:
+  - url: /
+security: []
+paths:
+  /api/v1/products:
+    post:
+      summary: Create a new product
+      operationId: createProduct
+      description: Create a new product
+      tags:
+        - products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: List all products
+      operationId: listProducts
+      description: List all products
+      tags:
+        - products
+      security: []
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProductsResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    ProductResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The unique identifier of the product
+          example: 123e4567-e89b-12d3-a456-426614174000
+          x-order: 1
+        name:
+          type: string
+          description: The name of the product
+          example: Product 1
+          x-order: 2
+        sku:
+          type: string
+          description: The SKU of the product
+          example: SKU123
+          x-order: 3
+        price:
+          type: number
+          description: The price of the product
+          example: 100
+          x-order: 4
+          x-go-type: float64
+        stockQuantity:
+          type: integer
+          description: The stock quantity of the product
+          example: 100
+          x-order: 5
+        createdAt:
+          type: string
+          format: date-time
+          description: The date and time the product was created
+          example: '2025-01-01T00:00:00Z'
+          x-order: 6
+        updatedAt:
+          type: string
+          format: date-time
+          description: The date and time the product was updated
+          example: '2025-01-01T00:00:00Z'
+          x-order: 7
+      required:
+        - id
+        - name
+        - sku
+        - price
+        - stockQuantity
+        - createdAt
+        - updatedAt
+    ListProductsResponse:
+      type: array
+      items:
+        $ref: '#/components/schemas/ProductResponse'
+      description: The list of products
+      x-order: 1
+    FieldError:
+      type: object
+      properties:
+        field:
+          type: string
+          description: field name
+          example: name
+          x-order: 1
+        message:
+          type: string
+          description: error message
+          example: Name is required
+          x-order: 2
+      required:
+        - field
+        - message
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Outbox pattern error code
+          example: ITEM_NOT_FOUND
+          x-order: 1
+        message:
+          type: string
+          description: Outbox pattern error message
+          example: Item not found
+          x-order: 2
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+          x-order: 3
+      required:
+        - code
+        - message
+    CreateProductRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the product
+          example: Product 1
+          x-order: 1
+        sku:
+          type: string
+          description: The SKU of the product
+          example: SKU123
+          x-order: 2
+        price:
+          type: number
+          description: The price of the product
+          example: 100
+          x-order: 3
+          x-go-type: float64
+        stockQuantity:
+          type: integer
+          description: The stock quantity of the product
+          example: 100
+          x-order: 4
+      required:
+        - name
+        - sku
+        - price
+        - stockQuantity

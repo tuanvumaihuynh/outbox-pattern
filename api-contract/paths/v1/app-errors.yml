@@ -1,0 +1,22 @@
+get:
+  summary: List all application errors
+  operationId: listAppErrors
+  description: Retrieve a list of all application errors
+  tags:
+    - app-error
+  security: []
+  responses:
+    '200':
+      description: A list of application errors
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '../../components/schemas/app-error.yml#/AppErrorResponse'
+    '400':
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/error.yml#/ErrorResponse'

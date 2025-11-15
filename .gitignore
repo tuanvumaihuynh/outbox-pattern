@@ -1,0 +1,31 @@
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
+
+# Folders
+_obj
+_test
+vendor
+
+*.exe
+*.test
+*.prof
+*.pprof
+*.out
+*.log
+
+/bin
+/tmp
+coverage.out
+coverage.html
+
+.vscode/*
+!.vscode/extensions.json
+
+.env
+
+/logs
+
+# MacOS
+.DS_Store

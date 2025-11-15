@@ -1,0 +1,111 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    networks:
+      - outbox-pattern
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.1
+    restart: unless-stopped
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - outbox-pattern
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.1
+    restart: unless-stopped
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    depends_on:
+      - zookeeper
+    networks:
+      - outbox-pattern
+
+  outbox-pattern-migrate:
+    build:
+      context: .
+      dockerfile: docker/outbox-pattern/migrate.dockerfile
+    env_file:
+      - .env
+    environment:
+      LOG_FORMAT: JSON
+      LOG_LEVEL: INFO
+      LOG_ADD_SOURCE: true
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      KAFKA_ADDRESSES: kafka:29092
+      KAFKA_GROUP: outbox-pattern-group
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - outbox-pattern
+
+  outbox-pattern-standalone:
+    build:
+      context: .
+      dockerfile: docker/outbox-pattern/standalone.dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      LOG_FORMAT: JSON
+      LOG_LEVEL: INFO
+      LOG_ADD_SOURCE: true
+      HTTP_PORT: 8000
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      KAFKA_ADDRESSES: kafka:29092
+      KAFKA_GROUP: outbox-pattern-group
+      OTEL_SERVICE_NAME: outbox-pattern
+      OTEL_COLLECTOR_URL: lgtm:4317
+      OTEL_INSECURE: true
+      OTEL_TRACE_ID_RATIO: 1.0
+    depends_on:
+      - postgres
+      - kafka
+      - outbox-pattern-migrate
+    networks:
+      - outbox-pattern
+
+volumes:
+  pg-data:
+  kafka-data:
+
+networks:
+  outbox-pattern:
+    driver: bridge
+    name: outbox-pattern-network

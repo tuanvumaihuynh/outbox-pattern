@@ -1,0 +1,87 @@
+ProductResponse:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+      description: The unique identifier of the product
+      example: 123e4567-e89b-12d3-a456-426614174000
+      x-order: 1
+    name:
+      type: string
+      description: The name of the product
+      example: Product 1
+      x-order: 2
+    sku:
+      type: string
+      description: The SKU of the product
+      example: SKU123
+      x-order: 3
+    price:
+      type: number
+      description: The price of the product
+      example: 100.00
+      x-order: 4
+      x-go-type: float64
+    stockQuantity:
+      type: integer
+      description: The stock quantity of the product
+      example: 100
+      x-order: 5
+    createdAt:
+      type: string
+      format: date-time
+      description: The date and time the product was created
+      example: 2025-01-01T00:00:00Z
+      x-order: 6
+    updatedAt:
+      type: string
+      format: date-time
+      description: The date and time the product was updated
+      example: 2025-01-01T00:00:00Z
+      x-order: 7
+  required:
+    - id
+    - name
+    - sku
+    - price
+    - stockQuantity
+    - createdAt
+    - updatedAt
+
+ListProductsResponse:
+  type: array
+  items:
+    $ref: "#/ProductResponse"
+  description: The list of products
+  x-order: 1
+
+CreateProductRequest:
+  type: object
+  properties:
+    name:
+      type: string
+      description: The name of the product
+      example: Product 1
+      x-order: 1
+    sku:
+      type: string
+      description: The SKU of the product
+      example: SKU123
+      x-order: 2
+    price:
+      type: number
+      description: The price of the product
+      example: 100.00
+      x-order: 3
+      x-go-type: float64
+    stockQuantity:
+      type: integer
+      description: The stock quantity of the product
+      example: 100
+      x-order: 4
+  required:
+    - name
+    - sku
+    - price
+    - stockQuantity

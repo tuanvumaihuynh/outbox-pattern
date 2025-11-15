@@ -1,0 +1,46 @@
+post:
+  summary: Create a new product
+  operationId: createProduct
+  description: Create a new product
+  tags:
+    - products
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/product.yml#/CreateProductRequest'
+  responses:
+    '201':
+      description: Product created successfully
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/product.yml#/ProductResponse'
+    '400':
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/error.yml#/ErrorResponse'
+
+get:
+  summary: List all products
+  operationId: listProducts
+  description: List all products
+  tags:
+    - products
+  security: []
+  responses:
+    '200':
+      description: Products retrieved successfully
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/product.yml#/ListProductsResponse'
+    '400':
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/error.yml#/ErrorResponse'
