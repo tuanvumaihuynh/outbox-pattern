@@ -117,15 +117,11 @@ func (r outboxMsgRepository) ListUnprocessedOutboxMsgs(ctx context.Context, para
 }
 
 func (r outboxMsgRepository) BulkUpdateOutboxMsgs(ctx context.Context, params BulkUpdateOutboxMsgsParams) error {
-	ids := make([]uuid.UUID, 0, len(params.Items))
-	errs := make([]*string, 0, len(params.Items))
-	for _, item := range params.Items {
-		ids = append(ids, item.ID)
-		if item.Error != nil {
-			errs = append(errs, item.Error)
-		} else {
-			errs = append(errs, nil)
-		}
+	ids := make([]uuid.UUID, len(params.Items))
+	errs := make([]*string, len(params.Items))
+	for i, item := range params.Items {
+		ids[i] = item.ID
+		errs[i] = item.Error
 	}
 
 	_, err := r.db.Exec(ctx, `
