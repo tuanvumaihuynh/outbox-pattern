@@ -11,6 +11,7 @@ import (
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/repository"
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/storage/db"
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/storage/mq"
+	"github.com/tuanvumaihuynh/outbox-pattern/pkg/outbox"
 	"github.com/tuanvumaihuynh/outbox-pattern/pkg/ptr"
 )
 
@@ -87,55 +88,52 @@ func (s *Service) run(ctx context.Context) {
 
 				s.logger.InfoContext(ctx, "relaying outbox msgs", slog.Int("count", len(outboxMsgs)))
 
-				items := make([]repository.BulkUpdateOutboxMsgsItem, 0, len(outboxMsgs))
-				var (
-					mu sync.Mutex
-					wg sync.WaitGroup
-				)
+				resultChan := make(chan repository.BulkUpdateOutboxMsgsItem, len(outboxMsgs))
+				var wg sync.WaitGroup
 
 				for _, outboxMsg := range outboxMsgs {
 					msg := outboxMsg
+					produceCtx := outbox.ExtractContextFromHeaders(ctx, msg.Headers)
 					wg.Go(func() {
-						produceFunc := func() error {
-							produceMsg := mq.ProduceMsg{
-								Topic:        msg.Topic,
-								Headers:      msg.Headers,
-								Payload:      msg.Payload,
-								PartitionKey: msg.PartitionKey,
-							}
-							if err := s.mqProducer.Produce(ctx, produceMsg); err != nil {
-								return fmt.Errorf("produce message: %w", err)
-							}
-
-							return nil
+						produceMsg := mq.ProduceMsg{
+							Topic:        msg.Topic,
+							Headers:      msg.Headers,
+							Payload:      msg.Payload,
+							PartitionKey: msg.PartitionKey,
 						}
 
-						if err := produceFunc(); err != nil {
-							s.logger.ErrorContext(ctx,
+						if err := s.mqProducer.Produce(produceCtx, produceMsg); err != nil {
+							s.logger.ErrorContext(produceCtx,
 								"error producing message",
 								slog.String("outbox_msg_id", msg.ID.String()),
 								slog.String("topic", msg.Topic),
 								slog.Any("error", err),
 							)
-							mu.Lock()
-							items = append(items, repository.BulkUpdateOutboxMsgsItem{
+							resultChan <- repository.BulkUpdateOutboxMsgsItem{
 								ID:    msg.ID,
 								Error: ptr.New(err.Error()),
-							})
-							mu.Unlock()
+							}
 							return
 						}
 
-						mu.Lock()
-						items = append(items, repository.BulkUpdateOutboxMsgsItem{
+						resultChan <- repository.BulkUpdateOutboxMsgsItem{
 							ID:    msg.ID,
 							Error: nil,
-						})
-						mu.Unlock()
+						}
 					})
 				}
 
-				wg.Wait()
+				// close channel after all goroutines complete
+				go func() {
+					wg.Wait()
+					close(resultChan)
+				}()
+
+				// collect results from channel
+				items := make([]repository.BulkUpdateOutboxMsgsItem, 0, len(outboxMsgs))
+				for item := range resultChan {
+					items = append(items, item)
+				}
 
 				if err := s.outboxMsgRepo.
 					WithDB(db).

@@ -12,6 +12,7 @@ import (
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/model"
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/repository"
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/storage/db"
+	"github.com/tuanvumaihuynh/outbox-pattern/pkg/outbox"
 )
 
 type CreateProductParams struct {
@@ -45,6 +46,9 @@ func NewProductService(
 }
 
 func (s *productService) CreateProduct(ctx context.Context, params CreateProductParams) (model.Product, error) {
+	ctx, span := tracer.Start(ctx, "productService.CreateProduct")
+	defer span.End()
+
 	id, err := uuid.NewV7()
 	if err != nil {
 		return model.Product{}, fmt.Errorf("generate uuid v7: %w", err)
@@ -85,6 +89,7 @@ func (s *productService) CreateProduct(ctx context.Context, params CreateProduct
 			WithDB(db).
 			CreateOutboxMsg(ctx, repository.CreateOutboxMsgParams{
 				Topic:   event.TopicProductCreated,
+				Headers: outbox.BuildHeaders(ctx),
 				Payload: evBytes,
 			}); err != nil {
 			return fmt.Errorf("outbox msg repository create outbox msg: %w", err)
