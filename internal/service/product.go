@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/tuanvumaihuynh/outbox-pattern/internal/apperr"
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/event"
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/model"
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/repository"
@@ -78,15 +79,18 @@ func (s *productService) CreateProduct(ctx context.Context, params CreateProduct
 		return model.Product{}, fmt.Errorf("marshal event: %w", err)
 	}
 
-	if err := s.db.WithTx(ctx, func(db db.DB) error {
+	if err := s.db.WithTx(ctx, func(dbtx db.DB) error {
 		if err := s.productRepo.
-			WithDB(db).
+			WithDB(dbtx).
 			CreateProduct(ctx, product); err != nil {
+			if db.IsUniqueViolationError(err, "sku") {
+				return apperr.ProduceSkuAlreadyExistsErr.WrapParent(err)
+			}
 			return fmt.Errorf("product repository create product: %w", err)
 		}
 
 		if err := s.outboxMsgRepo.
-			WithDB(db).
+			WithDB(dbtx).
 			CreateOutboxMsg(ctx, repository.CreateOutboxMsgParams{
 				Topic:   event.TopicProductCreated,
 				Headers: outbox.BuildHeaders(ctx),
