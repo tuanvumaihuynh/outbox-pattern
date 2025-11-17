@@ -4,18 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"log/slog"
 	"net"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/apperr"
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/config"
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/http/apierr"
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/http/gen"
+	"github.com/tuanvumaihuynh/outbox-pattern/internal/http/metric"
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/http/middleware"
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/http/swagger"
 	"github.com/tuanvumaihuynh/outbox-pattern/internal/service"
@@ -25,8 +29,9 @@ var tracer = otel.Tracer("internal/http")
 
 // Service represents the HTTP service.
 type Service struct {
-	cfg    config.HTTP
-	logger *slog.Logger
+	cfg     config.HTTP
+	logger  *slog.Logger
+	metrics *metric.Metrics
 
 	productSvc service.ProductService
 }
@@ -41,6 +46,7 @@ func New(
 	return &Service{
 		cfg:        cfg,
 		logger:     log.With(slog.String("service", "http")),
+		metrics:    metric.New(),
 		productSvc: productSvc,
 	}
 }
@@ -89,6 +95,7 @@ func (s *Service) RegisterMiddlewares(r chi.Router) {
 	r.Use(
 		middleware.Recoverer(s.logger),
 		middleware.Trace(tracer),
+		middleware.Metrics(s.metrics),
 		middleware.CorrelationID(),
 		middleware.Cors(),
 		middleware.Logging(s.logger),
@@ -111,6 +118,10 @@ func (s *Service) RegisterHandlers(r chi.Router) {
 		ErrorHandlerFunc: s.handleResponseError,
 		Middlewares:      []gen.MiddlewareFunc{},
 	})
+
+	r.Handle(middleware.MetricsPath, promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{
+		ErrorLog: log.Default(),
+	}))
 }
 
 func (s *Service) handleRequestError(w http.ResponseWriter, r *http.Request, err error) {
